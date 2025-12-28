@@ -59,7 +59,7 @@ namespace Dowload1
                     var inputMaso = wait.Until(ExpectedConditions.ElementIsVisible(By.Id("QueryExtender_txtText")));
                     inputMaso.Clear();
                     inputMaso.SendKeys(invoiceCode);
-
+                     
                     var imgElement = driver.FindElement(By.Id("QueryExtender_Image"));
                     string base64Data = imgElement.GetAttribute("src").Split(',')[1];
 
