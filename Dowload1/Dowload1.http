@@ -1,0 +1,6 @@
+@Dowload1_HostAddress = http://localhost:5232
+
+GET {{Dowload1_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
