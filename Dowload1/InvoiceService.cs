@@ -21,6 +21,7 @@ namespace Dowload1
 {
     public class InvoiceService : IInvoiceService
     {
+        // Đã hoàn thành download file có cả xml và pdf
         public async Task<(byte[] fileData, string fileName)> DownloadInvoice(string url, string invoiceCode)
         {
             string requestId = Guid.NewGuid().ToString();
