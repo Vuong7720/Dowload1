@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Dowload1")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a5003a7cdc36a553a70c2b79d26bcaaca23903b6")]
 [assembly: System.Reflection.AssemblyProductAttribute("Dowload1")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Dowload1")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
