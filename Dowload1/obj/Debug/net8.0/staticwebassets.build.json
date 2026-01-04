@@ -1,1 +1,12 @@
-{"Version":1,"Hash":"hbOIegzb6ESZawb8qWDu98vywrQlYHc9qJH3eChtNC8=","Source":"Dowload1","BasePath":"/","Mode":"Root","ManifestType":"Build","ReferencedProjectsConfiguration":[],"DiscoveryPatterns":[],"Assets":[],"Endpoints":[]}
+{
+  "Version": 1,
+  "Hash": "6ePZqCcLpEjfzAOTOaXbQQrhqhckDWKF0/LdbkTbr5M=",
+  "Source": "Dowload1",
+  "BasePath": "_content/Dowload1",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}
