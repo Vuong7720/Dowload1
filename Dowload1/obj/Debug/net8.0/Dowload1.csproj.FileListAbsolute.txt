@@ -421,3 +421,4 @@ D:\Paraline\DowloadFile_Research\Dowload1\bin\Debug\net8.0\Microsoft.Playwright.
 d:\Paraline\DowloadFile_Research\Dowload1\bin\Debug\net8.0\BouncyCastle.Cryptography.dll
 d:\Paraline\DowloadFile_Research\Dowload1\bin\Debug\net8.0\BrotliSharpLib.dll
 d:\Paraline\DowloadFile_Research\Dowload1\bin\Debug\net8.0\Titanium.Web.Proxy.dll
+D:\Paraline\DowloadFile_Research\Dowload1\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt

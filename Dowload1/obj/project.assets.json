@@ -392,15 +392,6 @@
           "lib/netcoreapp2.1/_._": {}
         }
       },
-      "System.Memory/4.6.3": {
-        "type": "package",
-        "compile": {
-          "lib/netcoreapp2.1/_._": {}
-        },
-        "runtime": {
-          "lib/netcoreapp2.1/_._": {}
-        }
-      },
       "System.Memory.Data/8.0.1": {
         "type": "package",
         "compile": {
