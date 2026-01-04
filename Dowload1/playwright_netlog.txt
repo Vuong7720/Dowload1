@@ -1,0 +1,9 @@
+Playwright network log started at 2026-01-04T13:43:15.5607488Z
+2026-01-04T13:43:26.0262212Z URL=https://einvoice.fast.com.vn/AppHandler/EInvoiceQuery.ashx?p=N0JQQzczMTUyODhCMVJEQ0U=&t=2&c=V5Xo&r=1767534205963 Status=200 Content-Type=text/plain; charset=utf-8 Content-LengthHeader=200
+2026-01-04T13:43:26.0362436Z URL=https://einvoice.fast.com.vn/index.aspx/GetData Status=200 Content-Type=application/json; charset=utf-8 Content-LengthHeader=2080
+2026-01-04T13:43:35.6018173Z URL=https://einvoice.fast.com.vn/AppHandler/EInvoiceQuery.ashx?p=N0JQQzczMTUyODhCMVJEQ0U=&t=2&c=PMV&r=1767534215554 Status=200 Content-Type=text/plain; charset=utf-8 Content-LengthHeader=200
+2026-01-04T13:43:46.1274899Z URL=https://einvoice.fast.com.vn/AppHandler/EInvoiceQuery.ashx?p=N0JQQzczMTUyODhCMVJEQ0U=&t=2&c=3p2zD&r=1767534225887 Status=200 Content-Type=text/plain; charset=utf-8 Content-LengthHeader=259
+2026-01-04T13:43:46.1630854Z URL=https://einvoice.fast.com.vn/index.aspx/GetData Status=200 Content-Type=application/json; charset=utf-8 Content-LengthHeader=1572
+Playwright login success on attempt 3
+2026-01-04T13:43:48.0080225Z URL=https://einvoice.fast.com.vn/AppHandler/EInvoiceQuery.ashx?p=QVFBQUFGS0ZieXBsOVVJRWZZS3JSdG4xMmZHM3BjR25TYVREeUR2VWx3NG82UUV4aXVmQytib2ZsYTg9MDA5NDkz&t=6&c=3p2zD&n=11456&r=1767534227968 Status=200 Content-Type=text/plain Content-LengthHeader=0
+No in-page PDF/base64 found after clicks. Saving page html for analysis.

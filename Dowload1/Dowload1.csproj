@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Titanium.Web.Proxy" Version="3.2.2-beta" />
     <PackageReference Include="DotNetSeleniumExtras.WaitHelpers" Version="3.11.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="OpenAI" Version="2.8.0" />
@@ -15,6 +16,7 @@
     <PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="143.0.7499.16900" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Tesseract" Version="5.2.0" />
+    <PackageReference Include="Microsoft.Playwright" Version="1.43.0" />
   </ItemGroup>
 
   <ItemGroup>
