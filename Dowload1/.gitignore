@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+.vscode/.history
+*.user
+*.suo
+*.cache
+playwright-netlog.txt
+playwright_netlog.txt
