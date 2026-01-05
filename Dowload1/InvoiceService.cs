@@ -52,16 +52,7 @@ namespace Dowload1
                 "{\"recentDestinations\":[{\"id\":\"Save as PDF\",\"origin\":\"local\",\"account\":\"\"}],\"selectedDestinationId\":\"Save as PDF\",\"version\":2}");
 
             // Start a local HTTP(S) proxy to capture PDF responses from the browser.
-            //var proxyPort = new Random().Next(20000, 30000); // đang thử test  = 0 nên cmt
             var proxyServer = new ProxyServer();
-            //var explicitEndPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Loopback, proxyPort, true);
-            //proxyServer.AddEndPoint(explicitEndPoint);
-            //proxyServer.Start();
-
-            //// Configure Chrome to use the proxy
-            //options.AddArgument($"--proxy-server=127.0.0.1:{proxyPort}");
-            // Ignore certificate errors for automation (will allow proxy MITM without trusting cert)
-
 
             var explicitEndPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Loopback, 0, true);
             proxyServer.AddEndPoint(explicitEndPoint);
@@ -125,7 +116,8 @@ namespace Dowload1
                     var imgElement = driver.FindElement(By.Id("QueryExtender_Image"));
                     string base64Data = imgElement.GetAttribute("src").Split(',')[1];
 
-                    string captchaText = SolveCaptchaLocalModelAI(base64Data);
+                    //string captchaText = SolveCaptchaLocalModelAI(base64Data);
+                    string captchaText = SolveCaptchaWithQwen2VL(base64Data);
                     // Lưu ý: Cần làm sạch captchaText một lần nữa trong code C#
                     captchaText = Regex.Replace(captchaText, @"[^a-zA-Z0-9]", "");
 
@@ -218,7 +210,7 @@ namespace Dowload1
             }
         }
 
-        // giải captcha
+        // giải captcha với ministral 3-3b
         private string SolveCaptchaLocalModelAI(string base64Data)
         {
             try
@@ -242,12 +234,12 @@ namespace Dowload1
 
                 // 5. Tạo Prompt tối ưu cho việc giải Captcha
                 List<ChatMessage> messages = new List<ChatMessage>
-        {
-            new UserChatMessage(
-                ChatMessageContentPart.CreateTextPart("OCR this image. Return only the text/characters found, no talking."),
-                ChatMessageContentPart.CreateImagePart(imageBinary, "image/png")
-            )
-        };
+                {
+                    new UserChatMessage(
+                        ChatMessageContentPart.CreateTextPart("OCR this image. Return only the text/characters found, no talking."),
+                        ChatMessageContentPart.CreateImagePart(imageBinary, "image/png")
+                    )
+                };
 
                 // 6. Gọi API (Dùng CompleteChat nếu muốn đợi kết quả ngay)
                 ChatCompletion completion = client.CompleteChat(messages);
@@ -257,6 +249,52 @@ namespace Dowload1
                 // In ra console để bạn kiểm tra model có đọc đúng không
                 Console.WriteLine($"[AI OCR]: {captchaResult}");
 
+                return captchaResult;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Lỗi kết nối LM Studio: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        // giải captcha với qwen2-vl-2b-instruct:2 với tốc độ nhanh hơn so với model ministral
+        private string SolveCaptchaWithQwen2VL(string base64Data)
+        {
+            try
+            {
+                ApiKeyCredential credential = new ApiKeyCredential("lm-studio");
+                var options = new OpenAI.OpenAIClientOptions { Endpoint = new Uri("http://localhost:1234/v1") };
+
+                // 1. Thay đổi ID tương ứng với Model Qwen bạn vừa tải
+                // Lưu ý: Kiểm tra ID chính xác trong tab "Local Server" của LM Studio
+                var client = new ChatClient("lmstudio-community/Qwen2-VL-2B-Instruct-GGUF", credential, options);
+
+                byte[] imageBytes = Convert.FromBase64String(base64Data);
+                BinaryData imageBinary = BinaryData.FromBytes(imageBytes, "image/png");
+
+                // 2. Prompt tối ưu cho Qwen2-VL để giải mã captcha nhiễu
+                List<ChatMessage> messages = new List<ChatMessage>
+        {
+            new UserChatMessage(
+                ChatMessageContentPart.CreateTextPart("Read the characters in this image. Return ONLY the text found."),
+                ChatMessageContentPart.CreateImagePart(imageBinary, "image/png")
+            )
+        };
+
+                // 3. Thiết lập Temperature thấp (0 hoặc 0.1) để giảm việc đoán sai ký tự
+                ChatCompletionOptions completionOptions = new ChatCompletionOptions()
+                {
+                    Temperature = 0.1f,
+                    MaxOutputTokenCount = 10 // Captcha thường rất ngắn, giới hạn để tiết kiệm tài nguyên
+                };
+
+                ChatCompletion completion = client.CompleteChat(messages, completionOptions);
+
+                // Làm sạch kết quả (loại bỏ khoảng trắng hoặc xuống dòng thừa)
+                string captchaResult = completion.Content[0].Text.Trim();
+
+                Console.WriteLine($"[Qwen2-VL OCR]: {captchaResult}");
                 return captchaResult;
             }
             catch (Exception ex)
