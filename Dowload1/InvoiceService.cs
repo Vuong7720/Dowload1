@@ -31,7 +31,7 @@ namespace Dowload1
 
             ChromeOptions options = new ChromeOptions();
 
-            //options.AddArgument("--headless=new");
+            options.AddArgument("--headless=new");
 
             // Cấu hình tải file & In ấn
             options.AddUserProfilePreference("download.default_directory", userDownloadPath);
@@ -52,15 +52,27 @@ namespace Dowload1
                 "{\"recentDestinations\":[{\"id\":\"Save as PDF\",\"origin\":\"local\",\"account\":\"\"}],\"selectedDestinationId\":\"Save as PDF\",\"version\":2}");
 
             // Start a local HTTP(S) proxy to capture PDF responses from the browser.
-            var proxyPort = new Random().Next(20000, 30000);
+            //var proxyPort = new Random().Next(20000, 30000); // đang thử test  = 0 nên cmt
             var proxyServer = new ProxyServer();
-            var explicitEndPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Loopback, proxyPort, true);
+            //var explicitEndPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Loopback, proxyPort, true);
+            //proxyServer.AddEndPoint(explicitEndPoint);
+            //proxyServer.Start();
+
+            //// Configure Chrome to use the proxy
+            //options.AddArgument($"--proxy-server=127.0.0.1:{proxyPort}");
+            // Ignore certificate errors for automation (will allow proxy MITM without trusting cert)
+
+
+            var explicitEndPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Loopback, 0, true);
             proxyServer.AddEndPoint(explicitEndPoint);
             proxyServer.Start();
 
-            // Configure Chrome to use the proxy
-            options.AddArgument($"--proxy-server=127.0.0.1:{proxyPort}");
-            // Ignore certificate errors for automation (will allow proxy MITM without trusting cert)
+            // 2. Lấy cổng thực tế SAU KHI đã Start
+            var actualPort = explicitEndPoint.Port;
+
+            // 3. Truyền cổng đó vào Chrome
+            options.AddArgument($"--proxy-server=127.0.0.1:{actualPort}");
+
             options.AddArgument("--ignore-certificate-errors");
 
             // Hook response event to capture PDFs
@@ -125,14 +137,13 @@ namespace Dowload1
 
                     try
                     {
-                        // Kiểm tra sự xuất hiện của nút download để xác nhận đăng nhập thành công
                         wait.Until(ExpectedConditions.ElementIsVisible(By.Id("QueryExtender_btnDownload")));
                         loginSuccess = true;
                         break;
                     }
                     catch
                     {
-                        Console.WriteLine($"Sai captcha lần {i + 1}, đang thử lại...");
+                        Console.WriteLine($"Sai captcha lan {i + 1}, dang thu lai...");
                     }
                 }
 
@@ -145,31 +156,10 @@ namespace Dowload1
                     // 1. Tải XML
                     var btnXml = driver.FindElement(By.Id("QueryExtender_btnDownload"));
                     driver.ExecuteScript("arguments[0].click();", btnXml);
-                    await Task.Delay(2000);
+                    //await Task.Delay(2000);
 
                     // 2. Tải PDF (Dùng Script để đảm bảo focus vào trang trước khi in)
-                    //string pdfUrl = ((IJavaScriptExecutor)driver).ExecuteScript(@"
-                    //                const embed = document.querySelector('embed[original-url]');
-                    //                return embed ? embed.getAttribute('original-url') : null;
-                    //            ") as string;
-
-                    //if (string.IsNullOrEmpty(pdfUrl))
-                    //    throw new Exception("Không tìm thấy original-url của PDF");
-                    //driver.ExecuteScript($@"
-                    //        var link = document.createElement('a');
-                    //        link.href = '{pdfUrl}';
-                    //        link.download = 'Invoice_{invoiceCode}.pdf';
-                    //        document.body.appendChild(link);
-                    //        link.click();
-                    //        document.body.removeChild(link);
-                    //    ");
-
-                    // Chờ một chút để Chrome xử lý tải file
-                    //await Task.Delay(3000);
-
-
-                    // NOTE: Disabled performance.getEntries -> apiUrl path because it commonly returns null/blob and
-                    // causes fallback to printToPDF (screenshot-like PDF). We'll rely on other fallbacks (blob fetch / Playwright).
+                   
                     string apiUrl = null;
 
                     var cookieContainer = new System.Net.CookieContainer();
@@ -180,29 +170,6 @@ namespace Dowload1
                     }
 
                     bool pdfSaved = false;
-
-                    // Directly try Playwright fallback (skip other fallbacks)
-                    try
-                    {
-                        var pwPdf = await TryDownloadPdfWithPlaywrightAsync(url, invoiceCode, cookieContainer);
-                        if (pwPdf != null && pwPdf.Length > 0)
-                        {
-                            string pdfFilePath = Path.Combine(userDownloadPath, $"Invoice_{invoiceCode}.pdf");
-                            await File.WriteAllBytesAsync(pdfFilePath, pwPdf);
-                            pdfSaved = true;
-                            Console.WriteLine($"Lưu PDF gốc bằng Playwright: {pwPdf.Length} bytes");
-                        }
-                        else
-                        {
-                            Console.WriteLine("Playwright không lấy được PDF gốc.");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine("Lỗi Playwright fallback: " + ex.Message);
-                    }
-
-
 
                     // 3. Vòng lặp chờ file (Thông minh hơn)
                     int timeout = 5;
@@ -250,285 +217,6 @@ namespace Dowload1
                 }
             }
         }
-
-        // Fallback using Playwright to intercept the PDF response and save the original PDF bytes
-        private async Task<byte[]?> TryDownloadPdfWithPlaywrightAsync(string pageUrl, string invoiceCode, CookieContainer cookieContainer)
-        {
-            try
-            {
-                using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
-                var browser = await playwright.Chromium.LaunchAsync(new Microsoft.Playwright.BrowserTypeLaunchOptions { Headless = true });
-                var context = await browser.NewContextAsync();
-
-                // Transfer cookies from CookieContainer to Playwright context (for the target page domain)
-                try
-                {
-                    var uri = new Uri(pageUrl);
-                    var coll = cookieContainer.GetCookies(uri);
-                    var pwCookies = new List<Microsoft.Playwright.Cookie>();
-                    foreach (System.Net.Cookie c in coll)
-                    {
-                        pwCookies.Add(new Microsoft.Playwright.Cookie { Name = c.Name, Value = c.Value, Domain = c.Domain, Path = c.Path, HttpOnly = c.HttpOnly, Secure = c.Secure });
-                    }
-                    if (pwCookies.Count > 0)
-                    {
-                        await context.AddCookiesAsync(pwCookies.ToArray());
-                    }
-                }
-                catch { }
-
-                // Navigate and attempt to reproduce the download action so we can capture the network response with PDF bytes
-                var page = await context.NewPageAsync();
-
-                // Ensure page navigation after cookies set
-                await page.GotoAsync(pageUrl, new Microsoft.Playwright.PageGotoOptions { WaitUntil = Microsoft.Playwright.WaitUntilState.NetworkIdle, Timeout = 30000 });
-
-                // Prepare network log file
-                var logPath = Path.Combine(Directory.GetCurrentDirectory(), "playwright_netlog.txt");
-                try { File.WriteAllText(logPath, $"Playwright network log started at {DateTime.UtcNow:o}\n"); } catch {}
-
-                // Try to wait for a PDF response that matches the invoice PDF request
-                Microsoft.Playwright.IResponse? pdfResponse = null;
-                var waitTask = page.WaitForResponseAsync(resp =>
-                    {
-                        var u = (resp.Url ?? string.Empty).ToLowerInvariant();
-                        var headers = resp.Headers ?? new Dictionary<string, string>();
-                        var ct = headers.ContainsKey("content-type") ? headers["content-type"] : (headers.GetValueOrDefault("Content-Type") ?? string.Empty);
-                        return (ct != null && ct.ToLowerInvariant().Contains("application/pdf")) || u.Contains("einvoicequery.ashx") || u.Contains("t=4") || u.EndsWith(".pdf");
-                    }, new Microsoft.Playwright.PageWaitForResponseOptions { Timeout = 30000 });
-
-                // Log every network response for diagnosis
-                page.Response += async (sender, resp) =>
-                {
-                    try
-                    {
-                        var urlLower = (resp.Url ?? string.Empty);
-                        var headers = resp.Headers ?? new Dictionary<string, string>();
-                        var ct = headers.ContainsKey("content-type") ? headers["content-type"] : (headers.GetValueOrDefault("Content-Type") ?? string.Empty);
-                        var status = resp.Status;
-                        var lenHeader = headers.ContainsKey("content-length") ? headers["content-length"] : string.Empty;
-                        var line = $"{DateTime.UtcNow:o} URL={urlLower} Status={status} Content-Type={ct} Content-LengthHeader={lenHeader}" + Environment.NewLine;
-                        await File.AppendAllTextAsync(logPath, line);
-                    }
-                    catch { }
-                };
-
-                // Attempt to perform the site's form submission (including captcha) inside Playwright
-                try
-                {
-                    for (int attempt = 0; attempt < 6; attempt++)
-                    {
-                        try
-                        {
-                            var inputMaso = await page.QuerySelectorAsync("#QueryExtender_txtText");
-                            if (inputMaso == null)
-                            {
-                                await File.AppendAllTextAsync(logPath, $"Attempt {attempt + 1}: input field not found\n");
-                                await page.WaitForTimeoutAsync(1000);
-                                continue;
-                            }
-
-                            await page.FillAsync("#QueryExtender_txtText", invoiceCode);
-
-                            var imgEl = await page.QuerySelectorAsync("#QueryExtender_Image");
-                            if (imgEl == null)
-                            {
-                                await File.AppendAllTextAsync(logPath, $"Attempt {attempt + 1}: captcha image not found\n");
-                                await page.WaitForTimeoutAsync(1000);
-                                continue;
-                            }
-
-                            var src = await imgEl.GetAttributeAsync("src");
-                            if (string.IsNullOrEmpty(src) || !src.Contains(','))
-                            {
-                                await File.AppendAllTextAsync(logPath, $"Attempt {attempt + 1}: captcha src missing or invalid\n");
-                                await page.WaitForTimeoutAsync(1000);
-                                continue;
-                            }
-
-                            var base64Part = src.Split(',')[1];
-                            var captchaText = SolveCaptchaLocalModelAI(base64Part);
-                            captchaText = Regex.Replace(captchaText ?? string.Empty, "[^a-zA-Z0-9]", "");
-
-                            await page.FillAsync("#QueryExtender_txtCode", captchaText);
-                            await page.ClickAsync("#QueryExtender_Ok");
-
-                            // Wait briefly for page to update
-                            await page.WaitForTimeoutAsync(2000);
-
-                            // Check if download button visible
-                            try
-                            {
-                                var downloadEl = await page.QuerySelectorAsync("#QueryExtender_btnDownload");
-                                if (downloadEl != null)
-                                {
-                                    bool vis = false;
-                                    try { vis = await downloadEl.IsVisibleAsync(); } catch { }
-                                    if (vis)
-                                    {
-                                        await File.AppendAllTextAsync(logPath, $"Playwright login success on attempt {attempt + 1}\n");
-                                        break;
-                                    }
-                                }
-                            }
-                            catch { }
-                        }
-                        catch (Exception ex)
-                        {
-                            try { await File.AppendAllTextAsync(logPath, $"Login attempt {attempt + 1} error: {ex.Message}\n"); } catch { }
-                        }
-                    }
-
-                    // Now try to click the download button to produce network response
-                    try
-                    {
-                        var btn = await page.QuerySelectorAsync("#QueryExtender_btnDownload");
-                        if (btn != null) await btn.ClickAsync(new Microsoft.Playwright.ElementHandleClickOptions { Timeout = 10000 });
-                        else await page.EvaluateAsync("document.querySelector('#QueryExtender_btnDownload')?.click()");
-                    }
-                    catch (Exception ex)
-                    {
-                        try { await File.AppendAllTextAsync(logPath, "Error clicking download button: " + ex.Message + "\n"); } catch { }
-                    }
-
-                    try
-                    {
-                        pdfResponse = await page.WaitForResponseAsync(resp =>
-                        {
-                            var u = (resp.Url ?? string.Empty).ToLowerInvariant();
-                            var headers = resp.Headers ?? new Dictionary<string, string>();
-                            var ct = headers.ContainsKey("content-type") ? headers["content-type"] : (headers.GetValueOrDefault("Content-Type") ?? string.Empty);
-                            return (ct != null && ct.ToLowerInvariant().Contains("application/pdf")) || u.Contains("einvoicequery.ashx") || u.Contains("t=4") || u.EndsWith(".pdf");
-                        }, new Microsoft.Playwright.PageWaitForResponseOptions { Timeout = 45000 });
-                    }
-                    catch { }
-                }
-                catch (Exception ex)
-                {
-                    try { await File.AppendAllTextAsync(logPath, "Playwright login+click flow error: " + ex.Message + "\n"); } catch { }
-                }
-
-                if (pdfResponse != null)
-                {
-                    try
-                    {
-                        var body = await pdfResponse.BodyAsync();
-                        await File.AppendAllTextAsync(logPath, $"Captured PDF response URL={pdfResponse.Url} Status={pdfResponse.Status} Length={body?.LongLength}\n");
-                        await browser.CloseAsync();
-                        return body;
-                    }
-                    catch (Exception ex)
-                    {
-                        try { await File.AppendAllTextAsync(logPath, "Error reading PDF response body: " + ex.Message + "\n"); } catch { }
-                    }
-                }
-
-                // If we didn't capture a network PDF, try to inspect the page for embed/iframe/object/data or blob URLs
-                try
-                {
-                    // This script looks for embed/iframe/object elements and tries to return a base64 string
-                    string fetchPdfScript = @"(async () => {
-                        try {
-                            function toBase64(buf) {
-                                let binary = '';
-                                const bytes = new Uint8Array(buf);
-                                const chunk = 0x8000;
-                                for (let i = 0; i < bytes.length; i += chunk) {
-                                    binary += String.fromCharCode.apply(null, Array.prototype.slice.call(bytes, i, Math.min(i + chunk, bytes.length)));
-                                }
-                                return btoa(binary);
-                            }
-
-                            // Candidate selectors
-                            const candidates = [];
-                            document.querySelectorAll('embed, iframe, object').forEach(e => candidates.push(e));
-                            // anchors that might directly link to pdf
-                            document.querySelectorAll('a').forEach(a => { if (a.href) candidates.push(a); });
-
-                            for (const e of candidates) {
-                                try {
-                                    const src = e.src || e.getAttribute('data') || e.getAttribute('data-src') || e.getAttribute('original-url') || e.href || '';
-                                    if (!src) continue;
-
-                                    // data:application/pdf;base64,...
-                                    if (src.startsWith('data:')) {
-                                        const parts = src.split(',');
-                                        if (parts.length > 1) return parts[1];
-                                    }
-
-                                    // blob: URL - fetch it in-page
-                                    if (src.startsWith('blob:')) {
-                                        try {
-                                            const r = await fetch(src);
-                                            const ab = await r.arrayBuffer();
-                                            return toBase64(ab);
-                                        } catch (e) { }
-                                    }
-
-                                    // regular URL - try fetch if it looks like a pdf link
-                                    if (src.toLowerCase().includes('.pdf') || src.toLowerCase().includes('t=4') || src.toLowerCase().includes('einvoice')) {
-                                        try {
-                                            const r = await fetch(src, { credentials: 'include' });
-                                            const ct = r.headers.get('content-type') || '';
-                                            if (ct.includes('application/pdf') || src.toLowerCase().includes('.pdf')) {
-                                                const ab = await r.arrayBuffer();
-                                                return toBase64(ab);
-                                            }
-                                        } catch (e) { }
-                                    }
-                                } catch (e) { }
-                            }
-
-                            // If PDF generated client-side into a canvas, try to find canvas and export as PDF-ish image (fallback)
-                            const canv = document.querySelector('canvas');
-                            if (canv) {
-                                try {
-                                    const dataUrl = canv.toDataURL('image/png');
-                                    const b64 = dataUrl.split(',')[1];
-                                    return b64;
-                                } catch (e) { }
-                            }
-
-                            return null;
-                        } catch (err) { return null; }
-                    })();";
-
-                    var maybeBase64 = await page.EvaluateAsync<string>(fetchPdfScript);
-                    if (!string.IsNullOrEmpty(maybeBase64))
-                    {
-                        try
-                        {
-                            var bytes = Convert.FromBase64String(maybeBase64);
-                            await File.AppendAllTextAsync(logPath, $"Captured PDF via in-page fetch, bytes={bytes.Length}\n");
-                            await browser.CloseAsync();
-                            return bytes;
-                        }
-                        catch (Exception ex)
-                        {
-                            try { await File.AppendAllTextAsync(logPath, "Error decoding base64 from page: " + ex.Message + "\n"); } catch { }
-                        }
-                    }
-                    else
-                    {
-                        try { await File.AppendAllTextAsync(logPath, "No in-page PDF/base64 found after clicks. Saving page html for analysis.\n"); } catch { }
-                        try { var html = await page.ContentAsync(); await File.WriteAllTextAsync(Path.Combine(Directory.GetCurrentDirectory(), $"playwright_page_{invoiceCode}.html"), html); } catch { }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    try { await File.AppendAllTextAsync(logPath, "Error during in-page PDF extraction: " + ex.Message + "\n"); } catch { }
-                }
-
-                await browser.CloseAsync();
-                return null;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Playwright fallback error: " + ex.Message);
-                return null;
-            }
-        }
-
 
         // giải captcha
         private string SolveCaptchaLocalModelAI(string base64Data)
